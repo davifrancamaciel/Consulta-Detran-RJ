@@ -1,0 +1,251 @@
+﻿@{
+    ViewBag.Title = "Consulta";
+}
+
+<div class="form-horizontal dados">
+
+    
+    <div class="form-group">
+        <label class="control-label col-md-2">RENAVAN</label>
+        <div class="col-md-4">
+            <input type="text" id="renavan-input" value="" class="form-control" autofocus data-mask="00000000000" data-mask-selectonfocus="true" placeholder="00000000000 (11 DIGITOS)"/>
+            <button class="btn btn-success" disabled title="Buscar CNPJ" id="buscar-btn"><i class="glyphicon glyphicon-search"></i></button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-md-2">Data da consulta</label>
+        <div class="col-md-8">
+            <input type="text" id="DataConsulta-input" disabled value="" class="form-control caixa-grande" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-md-2">Quantidade de multas encontradas</label>
+        <div class="col-md-8">
+            <input type="text" id="QtdMultas-input" disabled value="" class="form-control caixa-grande" />
+        </div>
+    </div>
+    <div class="clearfix"></div>
+    <div id="resultado"></div>
+</div>
+
+
+
+
+
+<div class="modal fade" id="buscar-modal" tabindex="-1" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Buscar NADA CONSTA</h4>
+            </div>
+            <div class="modal-body" style="height:250px;">
+                <p>Preencha com o texto da imagem</p>
+                <br />
+                <div class="form-horizontal">
+                    <div class="form-group">
+                        <label class="control-label col-md-2">Texto</label>
+                        <div class="col-md-5">
+                            <input type="text" id="img-input" value="" class="form-control caixa-grande" />
+                        </div>
+                    </div>
+                    <div class="form-group img-captcha">
+                        <div class="col-md-offset-2 col-md-6">
+                            <div style="float:left;">
+                                <img id="captcha-img" title="Informe o texto da imagem" class="hidden" />
+                            </div>
+                            <div style="float:right;">
+                                <a href="#" id="buscar-captcha-btn" class="btn btn-warning btn-sm"><i class="glyphicon glyphicon-refresh"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="height:80px;">
+                <p class="bg-danger pull-left hidden msg" style="padding:10px 20px;">
+                    <i class="glyphicon glyphicon-warning-sign"></i>&nbsp;<strong><span id="msgErro-span"></span></strong>
+                </p>
+                <button type="button" id="fechar-button" class="btn btn-default" data-dismiss="modal">Fechar</button>
+                <button type="button" id="buscarDados-btn" class="btn btn-primary">Buscar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script src="~/Scripts/jquery.mask.js"></script>
+    <script>
+        $("#renavan-input").mask("00000000000", {
+            onComplete: function (texto) {
+                $("#buscar-btn").removeAttr("disabled");
+            },
+            onKeyPress: function (cep, event, currentField, options) {
+                $("#buscar-btn").attr("disabled", "disabled");
+                PreencheDados(null, true)
+            }
+        });
+
+        $("#buscar-btn").on("click", function () {
+            $("#buscar-modal").modal({ show: true });
+        });
+
+        $("#buscar-modal").on("show.bs.modal", function () {
+            BuscarCaptcha();
+        });
+
+        $("#buscar-modal").on("shown.bs.modal", function () {
+            $("#img-input").focus();
+        });
+
+        $("#buscar-modal").on("hidden.bs.modal", function () {
+            $("#img-input").val("");
+        });
+
+        $("#buscar-captcha-btn").on("click", function () {
+            $("#captcha-img").fadeOut(1000, function () {
+                $(this).attr('src', "");
+                BuscarCaptcha();
+            });
+
+        });
+
+        $("#buscarDados-btn").on("click", function () {
+            ObterDados();
+        });
+
+        var pathLoader = "@Url.Content("~/Content/ajax-loader-facebook.gif ")";
+        var $loader = $('<img class="loader-facebook" src="' + pathLoader + '"/> <em>Buscando ...</em>');
+
+        var BuscarCaptcha = function () {
+            var strUrl = '@Url.Action("GetCaptchaDetran")';
+            $.ajax({
+                type: 'GET',
+                url: strUrl,
+                dataType: 'json',
+                cache: false,
+                async: true,
+                beforeSend: function () {
+                    $loader.insertAfter($("#captcha-img"));
+                },
+                success: function (data) {
+                    $("#captcha-img").removeClass("hidden").attr('src', data);
+                    $("#captcha-img").fadeIn(1000);
+                },
+                complete: function () {
+                    $loader.remove();
+                    $("#img-input").focus();
+                },
+                error: function () {
+                    alert("erro na tentativa de obter o captcha");
+                }
+            });
+        };
+
+        var ObterDados = function () {
+            var strUrl = '@Url.Action("ConsultarDadosDetran")';
+            $.ajax({
+                type: 'post',
+                url: strUrl,
+                cache: false,
+                async: true,
+                data: { renavan: $("#renavan-input").val(), captcha: $("#img-input").val() },
+                beforeSend: function () {
+                    $loader.insertBefore($("#fechar-button"));
+                },
+                success: function (data) {
+
+
+                    console.log(data);
+
+                    $loader.remove();
+                    if (data.erro.length > 0) {
+                        $("#msgErro-span").text(data.erro).closest("p").removeClass("hidden");
+                        $("#captcha-img").fadeOut(1000, function () {
+                            $(this).attr('src', "");
+                            BuscarCaptcha();
+                            $("#img-input").focus();
+                        });
+                        setTimeout(function () {
+                            $("#msgErro-span").closest("p").addClass("hidden");
+                        }, 2000);
+                    } else {
+                        if (data.dados != null) {
+                            PreencheDados(data.dados, false);
+                            $("#buscar-modal").modal("hide");
+                        } else {
+                            $("#msgErro-span").text("erro de comunicação com a receita.").closest("p").removeClass("hidden");
+                            $("#captcha-img").fadeOut(1000, function () {
+                                $(this).attr('src', "");
+                                BuscarCaptcha();
+                                $("#img-input").focus();
+                            });
+                            setTimeout(function () {
+                                $("#msgErro-span").closest("p").addClass("hidden");
+                            }, 2000);
+                        }
+
+                    }
+                },
+                error: function (data) {
+                    $loader.remove();
+                    alert("erro de comunicação.");
+                },
+            });
+        };
+
+        var PreencheDados = function (dados, clear) {
+
+
+            if (clear) {
+                $(".caixa-grande").val("");
+            } else {
+                $("#DataConsulta-input").val(dados.DataConsulta);
+                $("#QtdMultas-input").val(dados.QtdMultas);
+
+
+                $("#resultado").html('');
+
+                var grid = "";
+
+                for (var i = 0; i < dados.Multas.length; i++) {
+                    var dado = dados.Multas[i];
+
+                    //console.log(dados.Marcas[i]);
+
+                    //grid += '<div class="form-group"><label class="control-label col-md-2">' + 'AgenteEmissor  &nbsp; &nbsp; ' + '</label><div class="col-md-10">' + dado.AgenteEmissor + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'AutoDeInfracao  &nbsp; &nbsp ' + '</label><div class="col-md-10">' + dado.AutoDeInfracao + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'AutoDeRenainf  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.AutoDeRenainf + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'DataPgtoDesconto  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.DataPgtoDesconto + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'DatadaInfracao  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.DatadaInfracao + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'Descricao  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.Descricao + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'Enquadramento  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.Enquadramento + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'HoraDaInfracao  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.HoraDaInfracao + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'LocalInfracao  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.LocalInfracao + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'OrgaoEmissor  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.OrgaoEmissor + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'PlacaRelacionada  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.PlacaRelacionada + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'StatusPagamento  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.StatusPagamento + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'ValorOriginal  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.ValorOriginal + '</div></div>' +
+                    //'<div class="form-group"><label class="control-label col-md-2">' + 'ValorSerPago  &nbsp; &nbsp' + '</label><div class="col-md-10">' + dado.ValorSerPago; + '</div></div>'
+
+                    grid += '<p>AgenteEmissor  &nbsp; &nbsp; ' + dado.AgenteEmissor +
+                   '</br>'+ 'AutoDeInfracao  &nbsp; &nbsp '  + dado.AutoDeInfracao +
+                   '</br>' + 'AutoDeRenainf  &nbsp; &nbsp' + dado.AutoDeRenainf +
+                    '</br>' + 'DataPgtoDesconto  &nbsp; &nbsp' + dado.DataPgtoDesconto +
+                    '</br>' + 'DatadaInfracao  &nbsp; &nbsp' + dado.DatadaInfracao +
+                    '</br>' + 'Descricao  &nbsp; &nbsp' + dado.Descricao +
+                    '</br>' + 'Enquadramento  &nbsp; &nbsp' + dado.Enquadramento +
+                    '</br>' + 'HoraDaInfracao  &nbsp; &nbsp' + dado.HoraDaInfracao +
+                    '</br>' + 'LocalInfracao  &nbsp; &nbsp' + dado.LocalInfracao +
+                    '</br>' + 'OrgaoEmissor  &nbsp; &nbsp' + dado.OrgaoEmissor +
+                    '</br>' + 'PlacaRelacionada  &nbsp; &nbsp' + dado.PlacaRelacionada +
+                    '</br>' + 'StatusPagamento  &nbsp; &nbsp' + dado.StatusPagamento +
+                    '</br>' + 'ValorOriginal  &nbsp; &nbsp' + dado.ValorOriginal +
+                    '</br>' + 'ValorSerPago  &nbsp; &nbsp' + dado.ValorSerPago; +'</p>'
+
+                }
+
+                $("#resultado").html(grid);
+            }
+        };
+    </script>
+}

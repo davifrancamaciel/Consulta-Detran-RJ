@@ -22,3 +22,23 @@ select,
 textarea {
     max-width: 280px;
 }
+
+.caixa-grande{
+    max-width: 90%!important;
+}
+
+#cnpj-input{
+    max-width: 80%!important;
+    display:inline;
+}
+#renavan-input{
+    max-width: 80%!important;
+    display:inline;
+}
+
+.dados{
+    border:2px solid #ebe8e8;
+    border-left:5px solid #1b809e!important; 
+    border-radius: 3px;
+    padding:40px;
+}
